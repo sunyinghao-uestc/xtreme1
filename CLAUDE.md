@@ -58,7 +58,7 @@ During dev, Vite proxies `/api` to `http://localhost:8190` (the nginx reverse pr
 # Build production bundles (individual apps)
 cd frontend/main && yarn build        # outputs to frontend/main/dist
 
-# Lint (main app only — the tool apps have only ESLint)
+# Lint (main app fully supports ESLint + stylelint; only image-tool among the tools has ESLint scripts)
 cd frontend/main && yarn lint:eslint
 cd frontend/main && yarn lint:stylelint
 
@@ -100,7 +100,9 @@ The production Dockerfile builds all 4 apps separately and merges static output 
 
 **API client pattern (tool apps):** Simpler — a raw `axios.create()` instance at `frontend/<tool>/src/api/base.ts` with a hardcoded empty `baseURL`, relying on Vite proxy in dev and relative paths in production.
 
-**State management (main app):** Pinia stores at `frontend/main/src/store/modules/` — `user.ts` (auth/tokens), `permission.ts` (route guards), `app.ts`, `locale.ts`, `multipleTab.ts`, `lock.ts`.
+**State management (main app):** Pinia stores at `frontend/main/src/store/modules/` — `user.ts` (auth/tokens), `permission.ts` (route guards), `app.ts`, `errorLog.ts`, `locale.ts`, `multipleTab.ts`, `lock.ts`.
+
+**Origin:** The main app is forked from `vue-vben-admin` — this explains the extensive admin dashboard scaffolding (route guards, tabs, error logging, etc.).
 
 ## Backend architecture
 
@@ -121,11 +123,11 @@ util/             General-purpose utilities
 
 **Auth flow:** `JwtAuthenticationFilter` (inserted after `AnonymousAuthenticationFilter` in the Spring Security filter chain) validates JWT tokens on every request. Public endpoints: `/actuator/**`, `/user/register`, `/user/login`, `/ontology/exportAsJson`.
 
-**Database:** MySQL 5.7, accessed via MyBatis-Plus 3.5.0 with logic delete (`isDeleted` field). Migrations are manual SQL scripts at `deploy/mysql/migration/V1__Create_tables.sql` and `V2__Init_data.sql` — no Flyway/Liquibase.
+**Database:** MySQL 5.7, accessed via MyBatis-Plus 3.5.0 with logic delete (`isDeleted` field). Mapper XML files (24 total, containing the actual SQL) live at `backend/src/main/resources/mybatis/mapper/`. Migrations are manual SQL scripts at `deploy/mysql/migration/V1__Create_tables.sql` and `V2__Init_data.sql` — no Flyway/Liquibase.
 
-**File storage:** MinIO (S3-compatible) at `deploy/mysql/migration/`.
+**File storage:** MinIO (S3-compatible) — a separate Docker service. Bucket and credentials are configured via `minio.*` keys in `application.yml`.
 
-**Model services:** External ML model containers called over HTTP for image object detection, point cloud detection, point cloud rendering, and image similarity computation.
+**Model services:** External ML model containers called over HTTP for image object detection, point cloud detection, point cloud rendering, and image similarity computation. Their endpoint URLs are configured in `application.yml` under `image.resultEvaluate.url`, `pointCloud.*.url`, and `dataset.similarity.url`.
 
 ## Key patterns and conventions
 
